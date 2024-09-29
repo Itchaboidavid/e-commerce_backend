@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\Category;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
 
@@ -13,7 +14,7 @@ class ProductController extends Controller
      */
     public function index()
     {
-        $products = Product::all();
+        $products = Product::with('category')->get();
 
         return response()->json($products);
     }
@@ -23,14 +24,19 @@ class ProductController extends Controller
      */
     public function store(StoreProductRequest $request)
     {
-        $request->validated();
+        $validatedData = $request->validated();
 
-        $product = Product::create($request->all());
+        if ($request->hasFile('image')) {
+            // Store the image in the public storage and get the file path
+            $imagePath = $request->file('image')->store('products', 'public');
 
-        return response()->json([
-            'message' => 'Product was created successfully.',
-            'product' => $product
-        ]);
+            // Save the image path to the validated data array
+            $validatedData['image_path'] = $imagePath;
+        }
+
+        $product = Product::create($validatedData);
+
+        return response()->json($product);
     }
 
     /**
@@ -52,10 +58,7 @@ class ProductController extends Controller
 
         $product->update($request->all());
 
-        return response()->json([
-            'message' => 'Product was updated successfully.',
-            'product' => $product
-        ]);
+        return response()->noContent();
     }
 
     /**
@@ -63,10 +66,8 @@ class ProductController extends Controller
      */
     public function destroy(Product $product)
     {
-        $product = Product::findOrFail($product);
-
         $product->delete();
 
-        return response()->json(['message' => 'Product was deleted successfully.']);
+        return response()->noContent();
     }
 }
